@@ -8,8 +8,3 @@ numpy>=1.24.0
 tiktoken>=0.5.0
 requests>=2.31.0
 python-dotenv>=1.0.0
-textstat>=0.7.0
-
-# CPU-only PyTorch for Python 3.11
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.0.0
