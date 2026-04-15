@@ -15,6 +15,11 @@ An adaptive, RAG-based document summarization system that automatically detects 
 
 ---
 
+## 🖥️ Deployed Link
+
+
+---
+
 ## 🏗️ Architecture
 
 ```
@@ -241,6 +246,7 @@ tiktoken>=0.5.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 textstat>=0.7.0
+opencv-python-headless>=4.8.0
 ```
 
 ---
@@ -266,20 +272,19 @@ textstat>=0.7.0
 
 ## 👨‍💻 Author
 
-**Saarthak Yadav**  
-GitHub: [@Saarthakyadav](https://github.com/Saarthakyadav)  
-Developed as part of an academic project.
-
+**Saarthak Yadav**   
+B.Tech Software Engineering — 3rd Year DTU DRDO Internship 2025
+GitHub: [@Saarthakyadav](https://github.com/Saarthakyadav) 
 ---
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) file for details.
+This project was developed as part of a DRDO internship. All rights reserved.
 
 ---
 
 ## 🙏 Acknowledgements
-
+- [DRDO](https://www.drdo.gov.in/drdo/) - for the internship opportunity
 - [Groq](https://groq.com) — for low-latency LLM inference
 - [Sentence Transformers](https://www.sbert.net) — for embedding models
 - [Streamlit](https://streamlit.io) — for the web framework
