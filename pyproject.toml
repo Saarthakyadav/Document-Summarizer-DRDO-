@@ -1,0 +1,21 @@
+[project]
+name = "document-summarizer"
+version = "1.0.0"
+description = "Intelligent Document Summarizer"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "streamlit>=1.28.0",
+    "PyMuPDF>=1.24.0",
+    "pytesseract>=0.3.10",
+    "Pillow>=10.0.0",
+    "sentence-transformers>=2.2.0",
+    "scikit-learn>=1.3.0",
+    "numpy>=1.24.0",
+    "tiktoken>=0.5.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
