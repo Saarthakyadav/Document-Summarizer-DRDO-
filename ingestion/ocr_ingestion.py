@@ -287,7 +287,7 @@ import os
 import urllib.parse
 import re
 from typing import List
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 from PIL import Image, ImageEnhance
 import pytesseract
 
