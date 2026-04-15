@@ -4,12 +4,20 @@ import re
 from typing import List
 from PIL import Image, ImageEnhance
 import pytesseract
-import fitz  # PyMuPDF - correct import
+import fitz  # PyMuPDF
 
 # -------------------------
 # CONFIG
 # -------------------------
 CACHE_ENABLED = True
+
+# Set tesseract path for Streamlit Cloud
+if os.path.exists('/usr/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+elif os.path.exists('/app/.apt/usr/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/app/.apt/usr/bin/tesseract'
+elif os.path.exists('/usr/local/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/usr/local/bin/tesseract'
 
 # -------------------------
 # TEXT VALIDATION
@@ -60,10 +68,10 @@ def correct_common_ocr_errors(text: str) -> str:
 
 
 # -------------------------
-# IMAGE PREPROCESSING (NO CV2 DEPENDENCY)
+# IMAGE PREPROCESSING
 # -------------------------
 def preprocess_image(image: Image.Image) -> Image.Image:
-    """Apply preprocessing to improve OCR accuracy using PIL only"""
+    """Apply preprocessing to improve OCR accuracy"""
     if image.mode != 'L':
         image = image.convert('L')
     
