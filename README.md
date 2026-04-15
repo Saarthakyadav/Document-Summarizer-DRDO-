@@ -17,7 +17,7 @@ An adaptive, RAG-based document summarization system that automatically detects 
 
 ## 🖥️ Deployed Link
 
-https://gpzuvsdmmdwscmk5ixfjn6.streamlit.app/
+https://intelligentdocumentsummarizer.streamlit.app/
 
 ---
 
