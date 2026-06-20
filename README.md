@@ -260,8 +260,8 @@ System packages (Streamlit Cloud / Linux): `tesseract-ocr`, `tesseract-ocr-eng`,
 ## 👨‍💻 Author
 
 **Saarthak Yadav**
-[BTech Software Engineering]
-[Delhi Technological University]
+BTech Software Engineering
+Delhi Technological University
 
 ---
 
