@@ -1,8 +1,9 @@
 [project]
 name = "document-summarizer"
-version = "1.0.0"
-description = "Intelligent Document Summarizer"
-requires-python = ">=3.11,<3.12"
+version = "2.0.0"
+description = "Adaptive Multi-Strategy Document Summarizer"
+requires-python = ">=3.10"
+# Pin the same versions as requirements.txt (keep both files in sync).
 dependencies = [
     "streamlit>=1.28.0",
     "PyMuPDF>=1.24.0",

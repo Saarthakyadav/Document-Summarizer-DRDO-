@@ -18,7 +18,6 @@ elif os.path.exists('/app/.apt/usr/bin/tesseract'):
     pytesseract.pytesseract.tesseract_cmd = '/app/.apt/usr/bin/tesseract'
 elif os.path.exists('/usr/local/bin/tesseract'):
     pytesseract.pytesseract.tesseract_cmd = '/usr/local/bin/tesseract'
-
 # -------------------------
 # TEXT VALIDATION
 # -------------------------

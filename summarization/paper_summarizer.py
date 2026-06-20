@@ -1,99 +1,122 @@
 """
-Research Paper Summarizer - Extracts Abstract, Sections, Conclusion
+Research Paper Summarizer
+Extracts Abstract, body sections, and Conclusion, then refines into a
+structured summary. Fixes the original bug where body sections were
+detected but never summarized.
 """
 import re
 import time
 from typing import Dict, List
 
-from generation.groq_summarizer2 import summarize_chunk_groq
+from generation.groq_summarizer2 import summarize_chunk_groq, _call_groq, clean_summary_text
+from generation.prompts import REFINE_PROMPT
 
 
-def summarize_paper_structured(text: str, detection: dict = None, max_tokens: int = None) -> dict:
-    """
-    Structured summarization for research papers
-    """
-    print(f"📄 Using PAPER/ARTICLE summarization strategy")
-    
-    result = {
-        "type": "paper",
-        "title": extract_title(text),
-        "authors": extract_authors(text),
-        "abstract": "",
-        "sections": {},
-        "conclusion": "",
-        "key_findings": [],
-        "metadata": detection["metadata"] if detection else {}
-    }
-    
-    # Extract abstract
-    abstract_text = extract_section(text, "Abstract")
-    if abstract_text:
-        print("  Summarizing Abstract...")
-        result["abstract"] = summarize_chunk_groq(abstract_text)
-    
-    # Extract conclusion
-    conclusion_text = extract_section(text, "Conclusion")
-    if conclusion_text:
-        print("  Summarizing Conclusion...")
-        result["conclusion"] = summarize_chunk_groq(conclusion_text)
-    
-    return result
+# ---------------------------------------------------------------------------
+# Section extraction helpers
+# ---------------------------------------------------------------------------
+SECTION_HEADERS = [
+    "Abstract", "Introduction", "Related Work", "Background",
+    "Methodology", "Method", "Approach", "Experiments", "Results",
+    "Discussion", "Conclusion", "Conclusions", "References",
+]
+
+_HEADER_RE = re.compile(
+    r"(?m)^(?:" + "|".join(re.escape(h) for h in SECTION_HEADERS) + r")\s*$",
+    re.IGNORECASE,
+)
+
+
+def extract_sections(text: str) -> Dict[str, str]:
+    """Split paper into named sections. Falls back to full text if no headers found."""
+    matches = list(_HEADER_RE.finditer(text))
+    if not matches:
+        return {"body": text}
+
+    sections: Dict[str, str] = {}
+    for i, match in enumerate(matches):
+        name = match.group(0).strip().title()
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        content = text[start:end].strip()
+        if content:
+            sections[name] = content[:4_000]   # cap per section to avoid token blow-up
+
+    return sections
 
 
 def extract_title(text: str) -> str:
-    """Extract paper title from first few lines"""
-    lines = text.split('\n')[:10]
-    for line in lines:
+    for line in text.split("\n")[:10]:
         line = line.strip()
-        if len(line) > 20 and len(line) < 200 and line[0].isupper():
+        if 20 <= len(line) <= 200 and line[0].isupper():
             return line[:150]
     return "Unknown Title"
 
 
 def extract_authors(text: str) -> List[str]:
-    """Extract author names from paper"""
-    authors = []
-    author_patterns = [
-        r'(?:Author|By):\s*([A-Z][a-z]+\s+[A-Z][a-z]+)',
-        r'([A-Z][a-z]+\s+[A-Z][a-z]+),\s+\d+',
+    patterns = [
+        r"(?:Author|By):\s*([A-Z][a-z]+ [A-Z][a-z]+)",
+        r"([A-Z][a-z]+ [A-Z][a-z]+),\s+\d+",
     ]
-    
-    for pattern in author_patterns:
-        matches = re.findall(pattern, text, re.MULTILINE)
-        authors.extend(matches)
-    
+    authors: List[str] = []
+    for p in patterns:
+        authors.extend(re.findall(p, text, re.MULTILINE))
     return list(dict.fromkeys(authors))[:3]
 
 
-def extract_section(text: str, section_name: str) -> str:
-    """Extract a specific section from the paper"""
-    pattern = rf'{section_name}\s*\n\s*(.*?)(?=\n(?:Abstract|Introduction|Methodology|Results|Discussion|Conclusion|References|$))'
-    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-    
-    if match:
-        content = match.group(1).strip()
-        if len(content) > 3000:
-            content = content[:3000]
-        return content
-    return ""
+# ---------------------------------------------------------------------------
+# Summarization
+# ---------------------------------------------------------------------------
+def summarize_paper_structured(text: str, detection: dict = None, max_tokens: int = None) -> dict:
+    """
+    Structured summarization for research papers.
+    Summarizes every detected section (not just abstract + conclusion),
+    then refines into a single coherent summary.
+    """
+    print("📄 Using PAPER summarization strategy")
+
+    sections = extract_sections(text)
+    print(f"  Detected sections: {list(sections.keys())}")
+
+    # Summarize each section individually
+    section_summaries: Dict[str, str] = {}
+    for name, content in sections.items():
+        if name.lower() == "references":
+            continue    # skip bibliography
+        print(f"  Summarizing '{name}' ({len(content)} chars)…")
+        summary = summarize_chunk_groq(content)
+        if summary:
+            section_summaries[name] = summary
+        time.sleep(0.2)
+
+    # Refine all section summaries into one flowing summary
+    running = ""
+    for name, s_summary in section_summaries.items():
+        if not running:
+            running = s_summary
+        else:
+            prompt = REFINE_PROMPT.format(summary=running[:3_000], chunk=s_summary)
+            result = _call_groq(prompt, max_tokens=800, temperature=0.3)
+            running = clean_summary_text(result) if result else running + "\n\n" + s_summary
+        time.sleep(0.2)
+
+    return {
+        "type": "paper",
+        "title": extract_title(text),
+        "authors": extract_authors(text),
+        "sections_found": list(section_summaries.keys()),
+        "summary": running,
+        "metadata": detection["metadata"] if detection else {},
+    }
 
 
 def format_paper_summary(paper_summary: dict) -> str:
-    """Format paper summary as readable text"""
-    output = []
-    
-    output.append(f"**Title:** {paper_summary['title']}")
-    if paper_summary['authors']:
-        output.append(f"**Authors:** {', '.join(paper_summary['authors'])}")
-    output.append("")
-    
-    if paper_summary['abstract']:
-        output.append("## Abstract")
-        output.append(paper_summary['abstract'])
-        output.append("")
-    
-    if paper_summary['conclusion']:
-        output.append("## Conclusion")
-        output.append(paper_summary['conclusion'])
-    
-    return "\n".join(output)
+    out = [f"**Title:** {paper_summary['title']}"]
+    if paper_summary.get("authors"):
+        out.append(f"**Authors:** {', '.join(paper_summary['authors'])}")
+    out.append("")
+    if paper_summary.get("sections_found"):
+        out.append(f"*Sections covered: {', '.join(paper_summary['sections_found'])}*")
+        out.append("")
+    out.append(paper_summary.get("summary", ""))
+    return "\n".join(out)

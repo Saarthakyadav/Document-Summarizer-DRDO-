@@ -1,75 +1,60 @@
 """
-Adaptive Summarizer - Routes to appropriate strategy based on document type
+Adaptive Summarizer — routes to the correct strategy based on document type
+and returns a normalised (type, summary_text, metadata) result.
+
+This is the single entry point that main.py calls. It is NOT a streaming
+function; main.py wraps calls here with its own progress-yield loop.
 """
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from utils.document_detector import detect_document_type
 from summarization.general_summarizer import summarize_general
 from summarization.paper_summarizer import summarize_paper_structured, format_paper_summary
 from summarization.book_summarizer import summarize_book_structured, format_book_summary
 
 
-def adaptive_summarize(text: str, return_structured: bool = False, max_tokens: int = None):
+def adaptive_summarize(text: str) -> dict:
     """
-    Main entry point for adaptive summarization
-    
-    Args:
-        text: Input text to summarize
-        return_structured: If True, return dict; if False, return formatted string
-        max_tokens: Maximum tokens for output (default: 1500)
+    Detect document type, route to the matching strategy, and return:
+        {
+            "doc_type": "book" | "paper" | "general",
+            "confidence": float,
+            "summary": str,
+            "metadata": dict,
+        }
     """
-    if max_tokens is None:
-        max_tokens = 1500
-    
-    # Detect document type
     detection = detect_document_type(text)
-    
-    print("\n" + "=" * 50)
+    doc_type = detection["type"]
+    confidence = detection["confidence"]
+
+    print(f"\n{'='*50}")
     print("📊 DOCUMENT ANALYSIS")
-    print("=" * 50)
-    print(f"   Type: {detection['type'].upper()}")
-    print(f"   Confidence: {detection['confidence']*100:.0f}%")
-    print(f"   Pages: ~{detection['metadata']['pages']}")
-    print(f"   Words: {detection['metadata']['words']:,}")
-    print("=" * 50 + "\n")
-    
-    # Route to appropriate summarizer
-    if detection["type"] == "book" and detection["confidence"] > 0.6:
-        result = summarize_book_structured(text, detection, max_tokens)
-        
-        if return_structured:
-            return result
-        else:
-            return format_book_summary(result)
-    
-    elif detection["type"] == "paper" and detection["confidence"] > 0.5:
-        result = summarize_paper_structured(text, detection, max_tokens)
-        
-        if return_structured:
-            return result
-        else:
-            return format_paper_summary(result)
-    
+    print(f"   Type:       {doc_type.upper()}")
+    print(f"   Confidence: {confidence*100:.0f}%")
+    print(f"   Words:      {detection['metadata']['words']:,}")
+    print(f"   Pages (est): ~{detection['metadata']['pages']}")
+    print(f"{'='*50}\n")
+
+    if doc_type == "book" and confidence > 0.6:
+        result = summarize_book_structured(text, detection)
+        summary = format_book_summary(result)
+        metadata = {**result["metadata"],
+                    "chapters_summarized": result["chapters_summarized"],
+                    "total_chapters": result["total_chapters"]}
+
+    elif doc_type == "paper" and confidence > 0.5:
+        result = summarize_paper_structured(text, detection)
+        summary = format_paper_summary(result)
+        metadata = {**result["metadata"],
+                    "sections_found": result.get("sections_found", [])}
+
     else:
-        result = summarize_general(text, detection, max_tokens)
-        
-        if return_structured:
-            return result
-        else:
-            return result.get("summary", "No summary generated")
+        # General: refine-chain pipeline (handles any size correctly)
+        result = summarize_general(text, detection)
+        summary = result.get("summary", "")
+        metadata = result.get("metadata", {})
 
-
-def summarize(text: str, max_tokens: int = None) -> str:
-    """Quick summary - returns formatted string"""
-    return adaptive_summarize(text, return_structured=False, max_tokens=max_tokens)
-
-
-def summarize_structured(text: str, max_tokens: int = None) -> dict:
-    """Structured summary - returns dict with metadata"""
-    return adaptive_summarize(text, return_structured=True, max_tokens=max_tokens)
-
-
-__all__ = ['adaptive_summarize', 'summarize', 'summarize_structured']
+    return {
+        "doc_type": doc_type,
+        "confidence": confidence,
+        "summary": summary,
+        "metadata": metadata,
+    }
